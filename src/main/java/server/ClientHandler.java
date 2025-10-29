@@ -26,8 +26,10 @@ public class ClientHandler implements Runnable {
                 "SET", new SetCommand(store),
                 "GET", new GetCommand(store),
                 "RPUSH", new RPushCommand(store),
+                "LPUSH", new LPushCommand(store),
                 "LRANGE", new LRangeCommand(store)
         );
+
     }
 
     @Override
