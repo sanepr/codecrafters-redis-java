@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 public final class RESPEncoder {
 
     private static final byte[] NULL_BULK_STRING = "$-1\r\n".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] NULL_ARRAY = "*-1\r\n".getBytes(StandardCharsets.UTF_8);
 
     private RESPEncoder() {}
 
@@ -39,5 +40,9 @@ public final class RESPEncoder {
         for (String el : elements) {
             writeBulkString(el, out);
         }
+    }
+
+    public static void writeNullArray(OutputStream out) throws IOException {
+        out.write(NULL_ARRAY);
     }
 }
