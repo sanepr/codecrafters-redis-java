@@ -2,10 +2,10 @@ package server.command;
 
 import server.data.RedisObject;
 import server.data.RedisList;
+import server.util.RESPEncoder;
 
 import java.io.OutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,25 +20,28 @@ public class RPushCommand implements Command {
     @Override
     public void execute(List<String> args, OutputStream outputStream) throws IOException {
         if (args.size() < 2) {
-            outputStream.write("-ERR wrong number of arguments for 'rpush' command\r\n".getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeError("wrong number of arguments for 'rpush' command", outputStream);
             return;
         }
 
         String key = args.get(0);
-        String element = args.get(1);
+        List<String> elementsToAdd = args.subList(1, args.size());
 
         RedisObject obj = store.get(key);
+        RedisList list;
 
         if (obj == null || obj.isExpired()) {
-            RedisList list = new RedisList(0);
-            int size = list.append(element);
+            list = new RedisList(0);
             store.put(key, list);
-            outputStream.write((":" + size + "\r\n").getBytes(StandardCharsets.UTF_8));
         } else if (obj instanceof RedisList) {
-            int size = ((RedisList) obj).append(element);
-            outputStream.write((":" + size + "\r\n").getBytes(StandardCharsets.UTF_8));
+            list = (RedisList) obj;
         } else {
-            outputStream.write("-ERR wrong type for key\r\n".getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeError("wrong type for key", outputStream);
+            return;
         }
+
+        elementsToAdd.forEach(list::append);
+
+        RESPEncoder.writeInteger(list.getValues().size(), outputStream);
     }
 }

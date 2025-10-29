@@ -2,10 +2,10 @@ package server.command;
 
 import server.data.RedisObject;
 import server.data.RedisString;
+import server.util.RESPEncoder;
 
 import java.io.OutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,7 +20,7 @@ public class SetCommand implements Command {
     @Override
     public void execute(List<String> args, OutputStream outputStream) throws IOException {
         if (args.size() < 2) {
-            outputStream.write("-ERR wrong number of arguments for 'set' command\r\n".getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeError("wrong number of arguments for 'set' command", outputStream);
             return;
         }
 
@@ -39,12 +39,12 @@ public class SetCommand implements Command {
                     expiryMillis = System.currentTimeMillis() + time;
                 }
             } catch (NumberFormatException e) {
-                outputStream.write("-ERR invalid expire time\r\n".getBytes(StandardCharsets.UTF_8));
+                RESPEncoder.writeError("invalid expire time", outputStream);
                 return;
             }
         }
 
         store.put(key, new RedisString(value, expiryMillis));
-        outputStream.write("+OK\r\n".getBytes(StandardCharsets.UTF_8));
+        RESPEncoder.writeSimpleString("OK", outputStream);
     }
 }

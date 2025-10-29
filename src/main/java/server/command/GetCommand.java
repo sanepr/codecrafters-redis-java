@@ -2,10 +2,10 @@ package server.command;
 
 import server.data.RedisObject;
 import server.data.RedisString;
+import server.util.RESPEncoder;
 
 import java.io.OutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,7 +20,7 @@ public class GetCommand implements Command {
     @Override
     public void execute(List<String> args, OutputStream outputStream) throws IOException {
         if (args.isEmpty()) {
-            outputStream.write("-ERR wrong number of arguments for 'get' command\r\n".getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeError("wrong number of arguments for 'get' command", outputStream);
             return;
         }
 
@@ -29,13 +29,11 @@ public class GetCommand implements Command {
 
         if (obj == null || obj.isExpired()) {
             if (obj != null) store.remove(key);
-            outputStream.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeBulkString(null, outputStream);
         } else if (obj instanceof RedisString) {
-            String value = ((RedisString) obj).getValue();
-            String response = "$" + value.length() + "\r\n" + value + "\r\n";
-            outputStream.write(response.getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeBulkString(((RedisString) obj).getValue(), outputStream);
         } else {
-            outputStream.write("-ERR wrong type for key\r\n".getBytes(StandardCharsets.UTF_8));
+            RESPEncoder.writeError("wrong type for key", outputStream);
         }
     }
 }
