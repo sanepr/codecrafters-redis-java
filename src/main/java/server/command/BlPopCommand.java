@@ -11,10 +11,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Blocking LPOP: blocks until an element becomes available and returns [key, element]
- * For this stage, only timeout=0 (block indefinitely) is supported.
+ * Supports fractional non-zero timeout (seconds) as well as timeout 0 (block indefinitely).
  */
 public class BlPopCommand implements Command {
     private final ConcurrentHashMap<String, RedisObject> store;
@@ -31,13 +32,21 @@ public class BlPopCommand implements Command {
         }
 
         String key = args.get(0);
-        String timeout = args.get(args.size() - 1); // last argument is timeout in seconds
+        String timeoutStr = args.get(args.size() - 1); // last argument is timeout in seconds
 
-        // Only support timeout == "0" for indefinite blocking in this stage
-        if (!"0".equals(timeout)) {
-            RESPEncoder.writeError("this implementation only supports timeout 0 for BLPOP", outputStream);
+        double timeoutSeconds;
+        try {
+            timeoutSeconds = Double.parseDouble(timeoutStr);
+            if (timeoutSeconds < 0) {
+                RESPEncoder.writeError("timeout must be >= 0", outputStream);
+                return;
+            }
+        } catch (NumberFormatException e) {
+            RESPEncoder.writeError("value is not a valid float or out of range", outputStream);
             return;
         }
+
+        boolean infinite = timeoutSeconds == 0.0;
 
         // Register as a waiter first to avoid races with RPUSH
         LinkedBlockingQueue<String> waiter = BlockingListManager.registerWaiter(key);
@@ -59,18 +68,35 @@ public class BlPopCommand implements Command {
             }
         }
 
-        // Otherwise block indefinitely until RPUSH delivers an element into our waiter
-        String value;
+        // Otherwise block until RPUSH delivers an element into our waiter or timeout
+        String value = null;
         try {
-            value = waiter.take();
+            if (infinite) {
+                value = waiter.take();
+            } else {
+                long timeoutMs = (long) Math.ceil(timeoutSeconds * 1000.0);
+                value = waiter.poll(timeoutMs, TimeUnit.MILLISECONDS);
+                if (value == null) {
+                    // Timed out, deregister and return null array
+                    BlockingListManager.deregisterWaiter(key, waiter);
+                    RESPEncoder.writeNullArray(outputStream);
+                    return;
+                }
+            }
         } catch (InterruptedException e) {
             // If interrupted, deregister and return null
             BlockingListManager.deregisterWaiter(key, waiter);
             Thread.currentThread().interrupt();
-            RESPEncoder.writeNullBulkString(outputStream);
+            RESPEncoder.writeNullArray(outputStream);
             return;
         }
 
-        RESPEncoder.writeArray(new String[]{key, value}, outputStream);
+        RESPEncoder.writeArray(new String[]{key, value}, outputOutputStreamSafe(outputStream));
+    }
+
+    // Helper to return the same output stream (keeps method calls explicit); avoids
+    // any accidental reassignments. Kept for clarity in the write call above.
+    private OutputStream outputOutputStreamSafe(OutputStream out) {
+        return out;
     }
 }
