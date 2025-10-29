@@ -1,57 +1,56 @@
 package server;
 
-
 import server.parser.RESPParser;
+import server.command.*;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientHandler implements Runnable {
+
     private final Socket clientSocket;
+    private static final ConcurrentHashMap<String, String> store = new ConcurrentHashMap<>();
+
+    // Map command names to command instances
+    private final Map<String, Command> commands;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
+
+        // Initialize commands
+        this.commands = Map.of(
+                "PING", new PingCommand(),
+                "ECHO", new EchoCommand(),
+                "SET", new SetCommand(store),
+                "GET", new GetCommand(store)
+        );
     }
 
     @Override
     public void run() {
         try (
                 InputStream inputStream = clientSocket.getInputStream();
-                OutputStream outputStream = clientSocket.getOutputStream();
+                OutputStream outputStream = clientSocket.getOutputStream()
         ) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
 
             while (true) {
                 List<String> commandParts = RESPParser.parseRESPArray(reader);
-                if (commandParts == null || commandParts.isEmpty()) {
-                    break;
-                }
+                if (commandParts == null || commandParts.isEmpty()) break;
 
-                String command = commandParts.get(0).toUpperCase();
+                String commandName = commandParts.get(0).toUpperCase();
+                List<String> args = commandParts.subList(1, commandParts.size());
 
-                switch (command) {
-                    case "PING" -> {
-                        outputStream.write("+PONG\r\n".getBytes(StandardCharsets.UTF_8));
-                    }
-                    case "ECHO" -> {
-                        if (commandParts.size() >= 2) {
-                            StringBuilder responseBuilder = new StringBuilder();
-                            responseBuilder.append("$");
-                            responseBuilder.append(commandParts.get(1).length());
-                            responseBuilder.append("\r\n");
-                            responseBuilder.append(commandParts.get(1));
-                            responseBuilder.append("\r\n");
+                Command command = commands.get(commandName);
 
-                            outputStream.write(responseBuilder.toString().getBytes(StandardCharsets.UTF_8));
-                        } else {
-                            outputStream.write("-ERR wrong number of arguments for 'echo' command\r\n".getBytes(StandardCharsets.UTF_8));
-                        }
-                    }
-                    default -> {
-                        outputStream.write(("-ERR unknown command '" + command + "'\r\n").getBytes(StandardCharsets.UTF_8));
-                    }
+                if (command != null) {
+                    command.execute(args, outputStream);
+                } else {
+                    outputStream.write(("-ERR unknown command '" + commandName + "'\r\n").getBytes(StandardCharsets.UTF_8));
                 }
 
                 outputStream.flush();
