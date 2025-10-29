@@ -1,17 +1,16 @@
 package server.data;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedList;
 
 public class RedisList extends RedisObject {
-    private final List<String> values;
+    private final LinkedList<String> values;
 
     public RedisList(long expiryTimeMillis) {
         super(expiryTimeMillis);
-        this.values = new ArrayList<>();
+        this.values = new LinkedList<>();
     }
 
-    public List<String> getValues() {
+    public LinkedList<String> getValues() {
         return values;
     }
 

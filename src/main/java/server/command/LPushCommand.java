@@ -23,7 +23,7 @@ public class LPushCommand implements Command {
             return;
         }
 
-        String key = args.getFirst();
+        String key = args.get(0);
         List<String> elements = args.subList(1, args.size());
 
         RedisObject obj = store.get(key);

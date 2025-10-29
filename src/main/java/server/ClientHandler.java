@@ -29,7 +29,8 @@ public class ClientHandler implements Runnable {
                 "LPUSH", new LPushCommand(store),
                 "LLEN", new LLenCommand(store),
                 "LPOP", new LPopCommand(store),
-                "LRANGE", new LRangeCommand(store)
+                "LRANGE", new LRangeCommand(store),
+                "BLPOP", new BlPopCommand(store)
         );
 
     }

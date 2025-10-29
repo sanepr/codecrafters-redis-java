@@ -23,7 +23,7 @@ public class LLenCommand implements Command {
             return;
         }
 
-        String key = args.getFirst();
+        String key = args.get(0);
         RedisObject obj = store.get(key);
 
         if (obj == null || obj.isExpired()) {

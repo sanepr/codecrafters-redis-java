@@ -1,5 +1,6 @@
 package server.command;
 
+import server.data.BlockingListManager;
 import server.data.RedisObject;
 import server.data.RedisList;
 import server.util.RESPEncoder;
@@ -8,6 +9,7 @@ import java.io.OutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class RPushCommand implements Command {
 
@@ -24,24 +26,49 @@ public class RPushCommand implements Command {
             return;
         }
 
-        String key = args.getFirst();
+        String key = args.get(0);
         List<String> elementsToAdd = args.subList(1, args.size());
 
         RedisObject obj = store.get(key);
-        RedisList list;
+        RedisList list = null;
 
-        if (obj == null || obj.isExpired()) {
-            list = new RedisList(0);
-            store.put(key, list);
-        } else if (obj instanceof RedisList) {
-            list = (RedisList) obj;
-        } else {
-            RESPEncoder.writeError("wrong type for key", outputStream);
-            return;
+        if (obj != null && !obj.isExpired()) {
+            if (obj instanceof RedisList) {
+                list = (RedisList) obj;
+            } else {
+                RESPEncoder.writeError("wrong type for key", outputStream);
+                return;
+            }
         }
 
-        elementsToAdd.forEach(list::append);
+        // For each element, deliver to any waiting BLPOP client if present; otherwise append to list
+        int appendedCount = 0;
+        for (String el : elementsToAdd) {
+            LinkedBlockingQueue<String> waiter = BlockingListManager.pollWaiter(key);
+            if (waiter != null) {
+                try {
+                    waiter.put(el);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // If interrupted, fall back to appending to list
+                    if (list == null) {
+                        list = new RedisList(0);
+                        store.put(key, list);
+                    }
+                    list.append(el);
+                    appendedCount++;
+                }
+            } else {
+                if (list == null) {
+                    list = new RedisList(0);
+                    store.put(key, list);
+                }
+                list.append(el);
+                appendedCount++;
+            }
+        }
 
-        RESPEncoder.writeInteger(list.getValues().size(), outputStream);
+        // Respond with the new length of the list (as Redis does, includes appended elements only)
+        RESPEncoder.writeInteger(list != null ? list.getValues().size() : 0, outputStream);
     }
 }

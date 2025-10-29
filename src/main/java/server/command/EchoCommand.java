@@ -13,7 +13,7 @@ public class EchoCommand implements Command {
         if (args.isEmpty()) {
             RESPEncoder.writeError("wrong number of arguments for 'echo' command", outputStream);
         } else {
-            RESPEncoder.writeBulkString(args.getFirst(), outputStream);
+            RESPEncoder.writeBulkString(args.get(0), outputStream);
         }
     }
 }

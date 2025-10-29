@@ -6,6 +6,7 @@ import server.util.RESPEncoder;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -55,7 +56,7 @@ public class LPopCommand implements Command {
             return;
         }
 
-        List<String> values = list.getValues();
+        LinkedList<String> values = list.getValues();
 
         if (values.isEmpty()) {
             RESPEncoder.writeNullBulkString(outputStream);

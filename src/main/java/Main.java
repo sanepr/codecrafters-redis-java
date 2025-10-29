@@ -9,9 +9,11 @@ import java.util.concurrent.Executors;
 public class Main {
     public static void main(String[] args) {
         int port = 6379;
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        ServerSocket serverSocket = null;
 
-        try (ServerSocket serverSocket = new ServerSocket(port);
-             ExecutorService executor = Executors.newFixedThreadPool(10);) {
+        try {
+            serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
             System.out.println("Server is listening on port " + port);
 
@@ -26,6 +28,15 @@ public class Main {
 
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        } finally {
+            if (serverSocket != null) {
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    System.out.println("Error closing server socket: " + e.getMessage());
+                }
+            }
+            executor.shutdown();
         }
     }
 }
