@@ -1,16 +1,15 @@
 package server.command;
 
-import server.data.RedisObject;
 import server.data.RedisList;
+import server.data.RedisObject;
 import server.util.RESPEncoder;
 
-import java.io.OutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LPushCommand implements Command {
-
     private final ConcurrentHashMap<String, RedisObject> store;
 
     public LPushCommand(ConcurrentHashMap<String, RedisObject> store) {
@@ -24,8 +23,8 @@ public class LPushCommand implements Command {
             return;
         }
 
-        String key = args.get(0);
-        List<String> elementsToAdd = args.subList(1, args.size());
+        String key = args.getFirst();
+        List<String> elements = args.subList(1, args.size());
 
         RedisObject obj = store.get(key);
         RedisList list;
@@ -37,13 +36,13 @@ public class LPushCommand implements Command {
         } else if (obj instanceof RedisList) {
             list = (RedisList) obj;
         } else {
-            RESPEncoder.writeError("wrong type for key", outputStream);
+            RESPEncoder.writeError("WRONGTYPE Operation against a key holding the wrong kind of value", outputStream);
             return;
         }
 
-        // Prepend elements in the correct order
-        for (int i = elementsToAdd.size() - 1; i >= 0; i--) {
-            list.getValues().add(0, elementsToAdd.get(i));
+        // Prepend in reverse order so LPUSH "a" "b" "c" results in ["c", "b", "a"]
+        for (String element : elements) {
+            list.getValues().addFirst(element);
         }
 
         RESPEncoder.writeInteger(list.getValues().size(), outputStream);

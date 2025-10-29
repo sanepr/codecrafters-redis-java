@@ -24,7 +24,7 @@ public class RPushCommand implements Command {
             return;
         }
 
-        String key = args.get(0);
+        String key = args.getFirst();
         List<String> elementsToAdd = args.subList(1, args.size());
 
         RedisObject obj = store.get(key);

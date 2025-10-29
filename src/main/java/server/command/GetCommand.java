@@ -24,7 +24,7 @@ public class GetCommand implements Command {
             return;
         }
 
-        String key = args.get(0);
+        String key = args.getFirst();
         RedisObject obj = store.get(key);
 
         if (obj == null || obj.isExpired()) {

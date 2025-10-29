@@ -42,12 +42,11 @@ public class LRangeCommand implements Command {
             return;
         }
 
-        if (!(obj instanceof RedisList)) {
+        if (!(obj instanceof RedisList list)) {
             RESPEncoder.writeError("wrong type for key", outputStream);
             return;
         }
 
-        RedisList list = (RedisList) obj;
         List<String> values = list.getValues();
         int size = values.size();
 
