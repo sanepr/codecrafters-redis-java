@@ -27,6 +27,7 @@ public class ClientHandler implements Runnable {
                 "GET", new GetCommand(store),
                 "RPUSH", new RPushCommand(store),
                 "LPUSH", new LPushCommand(store),
+                "LLEN", new LLenCommand(store),
                 "LRANGE", new LRangeCommand(store)
         );
 
