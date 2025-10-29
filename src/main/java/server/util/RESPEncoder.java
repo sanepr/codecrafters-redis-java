@@ -6,6 +6,8 @@ import java.nio.charset.StandardCharsets;
 
 public final class RESPEncoder {
 
+    private static final byte[] NULL_BULK_STRING = "$-1\r\n".getBytes(StandardCharsets.UTF_8);
+
     private RESPEncoder() {}
 
     public static void writeSimpleString(String value, OutputStream out) throws IOException {
@@ -18,10 +20,14 @@ public final class RESPEncoder {
 
     public static void writeBulkString(String value, OutputStream out) throws IOException {
         if (value == null) {
-            out.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
+            writeNullBulkString(out);
         } else {
             out.write(("$" + value.length() + "\r\n" + value + "\r\n").getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    public static void writeNullBulkString(OutputStream out) throws IOException {
+        out.write(NULL_BULK_STRING);
     }
 
     public static void writeInteger(long value, OutputStream out) throws IOException {
