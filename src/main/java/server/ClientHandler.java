@@ -1,10 +1,12 @@
 package server;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+
+import server.parser.RESPParser;
+
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public class ClientHandler implements Runnable {
     private final Socket clientSocket;
@@ -19,27 +21,44 @@ public class ClientHandler implements Runnable {
                 InputStream inputStream = clientSocket.getInputStream();
                 OutputStream outputStream = clientSocket.getOutputStream();
         ) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
 
-            // Loop to handle multiple commands from this client
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                String input = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-                System.out.println("Received from client " + clientSocket.getInetAddress() + ": " + input.trim());
+            while (true) {
+                List<String> commandParts = RESPParser.parseRESPArray(reader);
+                if (commandParts == null || commandParts.isEmpty()) {
+                    break;
+                }
 
-                // For now, always respond with PONG
-                outputStream.write("+PONG\r\n".getBytes(StandardCharsets.UTF_8));
+                String command = commandParts.get(0).toUpperCase();
+
+                switch (command) {
+                    case "PING" -> {
+                        outputStream.write("+PONG\r\n".getBytes(StandardCharsets.UTF_8));
+                    }
+                    case "ECHO" -> {
+                        if (commandParts.size() >= 2) {
+                            StringBuilder responseBuilder = new StringBuilder();
+                            responseBuilder.append("$");
+                            responseBuilder.append(commandParts.get(1).length());
+                            responseBuilder.append("\r\n");
+                            responseBuilder.append(commandParts.get(1));
+                            responseBuilder.append("\r\n");
+
+                            outputStream.write(responseBuilder.toString().getBytes(StandardCharsets.UTF_8));
+                        } else {
+                            outputStream.write("-ERR wrong number of arguments for 'echo' command\r\n".getBytes(StandardCharsets.UTF_8));
+                        }
+                    }
+                    default -> {
+                        outputStream.write(("-ERR unknown command '" + command + "'\r\n").getBytes(StandardCharsets.UTF_8));
+                    }
+                }
+
                 outputStream.flush();
             }
 
         } catch (IOException e) {
-            System.out.println("Client " + clientSocket.getInetAddress() + " disconnected: " + e.getMessage());
-        } finally {
-            try {
-                clientSocket.close();
-            } catch (IOException e) {
-                System.out.println("Error closing client socket: " + e.getMessage());
-            }
+            System.out.println("Client disconnected: " + e.getMessage());
         }
     }
 }
