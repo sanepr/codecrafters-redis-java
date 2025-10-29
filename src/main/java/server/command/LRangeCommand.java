@@ -30,10 +30,6 @@ public class LRangeCommand implements Command {
         try {
             start = Integer.parseInt(args.get(1));
             stop = Integer.parseInt(args.get(2));
-            if (start < 0 || stop < 0) {
-                RESPEncoder.writeError("negative indexes are not supported yet", outputStream);
-                return;
-            }
         } catch (NumberFormatException e) {
             RESPEncoder.writeError("start and stop must be integers", outputStream);
             return;
@@ -53,14 +49,20 @@ public class LRangeCommand implements Command {
 
         RedisList list = (RedisList) obj;
         List<String> values = list.getValues();
+        int size = values.size();
 
-        if (start >= values.size() || start > stop) {
+        // Convert negative indexes to positive
+        if (start < 0) start = size + start;
+        if (stop < 0) stop = size + stop;
+
+        // Clamp to valid range
+        start = Math.max(0, start);
+        stop = Math.min(stop, size - 1);
+
+        if (start > stop || start >= size) {
             RESPEncoder.writeArray(new String[0], outputStream); // empty array
             return;
         }
-
-        // Adjust stop if it exceeds list size
-        stop = Math.min(stop, values.size() - 1);
 
         List<String> subList = values.subList(start, stop + 1);
         RESPEncoder.writeArray(subList.toArray(new String[0]), outputStream);
