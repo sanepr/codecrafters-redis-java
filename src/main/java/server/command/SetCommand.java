@@ -8,9 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SetCommand implements Command {
 
-    private final ConcurrentHashMap<String, String> store;
+    private final ConcurrentHashMap<String, ValueWithExpiry> store;
 
-    public SetCommand(ConcurrentHashMap<String, String> store) {
+    public SetCommand(ConcurrentHashMap<String, ValueWithExpiry> store) {
         this.store = store;
     }
 
@@ -23,8 +23,27 @@ public class SetCommand implements Command {
 
         String key = args.get(0);
         String value = args.get(1);
-        store.put(key, value);
+        long expiryMillis = 0; // default: no expiry
 
+        // Parse optional arguments (EX seconds, PX milliseconds)
+        if (args.size() >= 4) {
+            String option = args.get(2).toUpperCase();
+            String optionValue = args.get(3);
+
+            try {
+                long time = Long.parseLong(optionValue);
+                if (option.equals("EX")) {
+                    expiryMillis = System.currentTimeMillis() + time * 1000L;
+                } else if (option.equals("PX")) {
+                    expiryMillis = System.currentTimeMillis() + time;
+                }
+            } catch (NumberFormatException e) {
+                outputStream.write("-ERR invalid expire time\r\n".getBytes(StandardCharsets.UTF_8));
+                return;
+            }
+        }
+
+        store.put(key, new ValueWithExpiry(value, expiryMillis));
         outputStream.write("+OK\r\n".getBytes(StandardCharsets.UTF_8));
     }
 }

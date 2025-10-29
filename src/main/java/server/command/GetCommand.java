@@ -8,9 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GetCommand implements Command {
 
-    private final ConcurrentHashMap<String, String> store;
+    private final ConcurrentHashMap<String, ValueWithExpiry> store;
 
-    public GetCommand(ConcurrentHashMap<String, String> store) {
+    public GetCommand(ConcurrentHashMap<String, ValueWithExpiry> store) {
         this.store = store;
     }
 
@@ -22,13 +22,16 @@ public class GetCommand implements Command {
         }
 
         String key = args.get(0);
-        String value = store.get(key);
+        ValueWithExpiry valueObj = store.get(key);
 
-        if (value != null) {
+        if (valueObj == null || valueObj.isExpired()) {
+            // Remove expired key if present
+            if (valueObj != null) store.remove(key);
+            outputStream.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
+        } else {
+            String value = valueObj.getValue();
             String response = "$" + value.length() + "\r\n" + value + "\r\n";
             outputStream.write(response.getBytes(StandardCharsets.UTF_8));
-        } else {
-            outputStream.write("$-1\r\n".getBytes(StandardCharsets.UTF_8));
         }
     }
 }

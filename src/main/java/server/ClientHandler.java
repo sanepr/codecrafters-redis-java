@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientHandler implements Runnable {
 
     private final Socket clientSocket;
-    private static final ConcurrentHashMap<String, String> store = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ValueWithExpiry> store = new ConcurrentHashMap<>();
 
     // Map command names to command instances
     private final Map<String, Command> commands;
