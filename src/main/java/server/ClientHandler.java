@@ -2,6 +2,7 @@ package server;
 
 import server.parser.RESPParser;
 import server.command.*;
+import server.data.RedisObject;
 
 import java.io.*;
 import java.net.Socket;
@@ -13,20 +14,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientHandler implements Runnable {
 
     private final Socket clientSocket;
-    private static final ConcurrentHashMap<String, ValueWithExpiry> store = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, RedisObject> store = new ConcurrentHashMap<>();
 
-    // Map command names to command instances
     private final Map<String, Command> commands;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
-
-        // Initialize commands
         this.commands = Map.of(
                 "PING", new PingCommand(),
                 "ECHO", new EchoCommand(),
                 "SET", new SetCommand(store),
-                "GET", new GetCommand(store)
+                "GET", new GetCommand(store),
+                "RPUSH", new RPushCommand(store)
         );
     }
 
@@ -46,7 +45,6 @@ public class ClientHandler implements Runnable {
                 List<String> args = commandParts.subList(1, commandParts.size());
 
                 Command command = commands.get(commandName);
-
                 if (command != null) {
                     command.execute(args, outputStream);
                 } else {

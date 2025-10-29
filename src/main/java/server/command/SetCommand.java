@@ -1,5 +1,8 @@
 package server.command;
 
+import server.data.RedisObject;
+import server.data.RedisString;
+
 import java.io.OutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -8,9 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SetCommand implements Command {
 
-    private final ConcurrentHashMap<String, ValueWithExpiry> store;
+    private final ConcurrentHashMap<String, RedisObject> store;
 
-    public SetCommand(ConcurrentHashMap<String, ValueWithExpiry> store) {
+    public SetCommand(ConcurrentHashMap<String, RedisObject> store) {
         this.store = store;
     }
 
@@ -23,13 +26,11 @@ public class SetCommand implements Command {
 
         String key = args.get(0);
         String value = args.get(1);
-        long expiryMillis = 0; // default: no expiry
+        long expiryMillis = 0;
 
-        // Parse optional arguments (EX seconds, PX milliseconds)
         if (args.size() >= 4) {
             String option = args.get(2).toUpperCase();
             String optionValue = args.get(3);
-
             try {
                 long time = Long.parseLong(optionValue);
                 if (option.equals("EX")) {
@@ -43,7 +44,7 @@ public class SetCommand implements Command {
             }
         }
 
-        store.put(key, new ValueWithExpiry(value, expiryMillis));
+        store.put(key, new RedisString(value, expiryMillis));
         outputStream.write("+OK\r\n".getBytes(StandardCharsets.UTF_8));
     }
 }
